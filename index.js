@@ -9,20 +9,26 @@ const _util = require('./util');
 const workerpool = require('workerpool');
 const _cacheKey = require('./cache-key');
 const redis = require('promise-redis')();
-const cache = {client: redis.createClient()};
 const {MongoClient} = require('mongodb');
-const url = 'mongodb://localhost:27017';
-const mongoClient = new MongoClient(url, {useUnifiedTopology: true});
+let cache;
 let db;
 
 const nodeState = new Map();
 
 workerpool.worker({
   find: async ({
-    cacheKey, chunk, databaseName, eventCollectionName, ledgerNodeId,
+    cacheKey, chunk, config, databaseName, eventCollectionName, ledgerNodeId,
     operationCollectionName
   }) => {
+    if(!cache) {
+      cache = {client: redis.createClient({
+        host: config.redis.host,
+        port: config.redis.port,
+      })};
+    }
     if(!db) {
+      const url = `mongodb://${config.mongodb.host}:${config.mongodb.port}`;
+      const mongoClient = new MongoClient(url, {useUnifiedTopology: true});
       await mongoClient.connect();
       db = mongoClient.db(databaseName);
     }
